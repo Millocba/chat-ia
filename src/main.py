@@ -1,11 +1,30 @@
 import streamlit as st
-from langchain.chains import RetrievalQA
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+import requests
 from utils import *
 
 # Configuración de la página
 st.set_page_config(page_title="Preguntas y Respuestas con PDF", layout="centered")
-st.header("📄 Pregunta a tu PDF usando Ollama (Local)")
+st.header("📄 Pregunta a tu PDF usando DistilBERT (Local)")
+
+# URL base del contenedor (ajustado según el puerto y la configuración del contenedor)
+HUGGINGFACE_API_URL = "http://localhost:11434/qa"  # Cambiar al puerto del contenedor Hugging Face si es diferente
+
+# Función para interactuar con el modelo en el contenedor
+def query_huggingface_qa(context, question):
+    """
+    Envía una solicitud al modelo QA ejecutándose en el contenedor.
+    """
+    payload = {"context": context, "question": question}
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.post(HUGGINGFACE_API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()  # Devuelve la respuesta del modelo
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error al interactuar con el modelo: {e}")
+        return None
 
 # Sidebar para subir archivos
 with st.sidebar:
@@ -31,7 +50,7 @@ with st.sidebar:
             archivos = []
             clean_files(FILE_LIST)
 
-# Lógica para realizar la búsqueda y enviar los resultados a LLaMA
+# Lógica para realizar la búsqueda y enviar los resultados al modelo
 if archivos:
     user_question = st.text_input("Pregunta:")
     if user_question:
@@ -44,18 +63,20 @@ if archivos:
             st.error("El índice ChromaDB no existe. Procesa documentos primero.")
         else:
             docs = search_chroma(collection, user_question, k=3)
+            st.write(docs)
             if docs:
-                # Asegurarnos de que cada elemento en docs sea una cadena de texto (string)
-                context = "\n".join([str(doc) for doc in docs])  # Convertimos cada doc a string
-                prompt = f"Pregunta: {user_question}\nContexto: {context}\nRespuesta:"
+                # Preparar el contexto uniendo los documentos
+                context = "Dame una respuesta elaborada en base al siguiente contexto ".join([str(doc) for doc in docs])
+                st.write(f"Contexto utilizado: {context}")
 
-                # Enviar el prompt a LLaMA
-                llama_response = query_llama_32(prompt)
+                # Enviar el contexto y la pregunta al modelo QA
+                model_response = query_huggingface_qa(context, user_question)
 
-                if llama_response:
-                    st.write("Respuesta de LLaMA 3.2:")
-                    st.write(llama_response)  # Mostrar solo la respuesta generada por el modelo
+                if model_response:
+                    st.write("Respuesta del modelo:")
+                    st.write(model_response.get("answer", "No se generó una respuesta."))
                 else:
-                    st.warning("No se pudo obtener una respuesta de LLaMA.")
+                    st.warning("No se pudo obtener una respuesta del modelo.")
             else:
                 st.warning("No se encontraron resultados relevantes.")
+

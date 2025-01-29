@@ -12,7 +12,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 FILE_LIST = "src/archivos.txt"
 INDEX_NAME = 'taller'
 
-chroma_client = chromadb.HttpClient(host='localhost', port=8000)
+# Ajusta la conexión al cliente de ChromaDB si se está ejecutando en un contenedor
+chroma_client = chromadb.HttpClient(host='localhost', port=8000)  # Cambia el puerto según tu configuración
 
 def save_name_files(path, new_files):
     old_files = load_name_files(path)
@@ -63,7 +64,7 @@ def get_chroma_collection(index_name):
         return None
 
 
-def search_chroma(collection, query, k=3):
+def search_chroma(collection, query, k=5):
     try:
         results = collection.query(
             query_texts=[query],
@@ -107,21 +108,3 @@ def create_embeddings(file_name, text):
             ids=[f"{file_name}-{chunk.metadata['page_number']}"]
         )
     print(f"Embeddings creados y agregados a la colección {INDEX_NAME}.")
-
-    # Función para interactuar con Ollama a través de la API
-def query_llama_32(prompt):
-    url = "http://localhost:11434/v1/llama3"  # URL de tu servidor Ollama con LLaMA 3.2
-    headers = {
-        "Content-Type": "application/json"
-    }
-    data = {
-        "input": prompt,  # El prompt que le pasas a LLaMA
-        "model": "llama3",  # LLaMA 3.2
-    }
-
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-    if response.status_code == 200:
-        return response.json()["response"]  # Devuelve la respuesta generada por LLaMA
-    else:
-        print(f"Error al interactuar con Ollama: {response.status_code}")
-        return None

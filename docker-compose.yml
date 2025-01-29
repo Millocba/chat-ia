@@ -1,0 +1,26 @@
+services:
+  chromadb:
+    image: chromadb/chroma  # Si no encuentras esta imagen, usa la opción para construirla o busca otra imagen compatible
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+    networks:
+      - chroma-network
+    mem_limit: 2g
+    cpus: "1.0"
+  
+  ollama:
+    image: wolverminion/llama3.1
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - LLAMA_MODEL=llama3.1
+    networks:
+      - chroma-network
+
+networks:
+  chroma-network:
+    driver: bridge
